@@ -21,6 +21,8 @@ without them and always set X-Total-Count. All bodies are JSON. Errors are {"err
     GET    /api/v1/user                         current user
     PATCH  /api/v1/users/{name}                 rename a user or org: {"name": "new"}
     GET    /api/v1/users/{name}
+    GET    /api/v1/users/{name}/heatmap         contributions of the last year in 15-minute buckets:
+                                                [{timestamp, contributions}] (readable repos only)
     GET    /api/v1/notifications
     GET    /api/v1/user/orgs                    organizations you belong to, with your role
                                                 (site admins: ?all=true for every organization)

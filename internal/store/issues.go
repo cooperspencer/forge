@@ -407,3 +407,47 @@ func (s *Store) MarkNotificationsRead(ctx context.Context, userID int64) error {
 	_, err := s.db.ExecContext(ctx, `UPDATE notifications SET read=1 WHERE user_id=?`, userID)
 	return err
 }
+
+// ------------------------------------------------------------ activity graph
+
+// Contribution is the number of a user's contributions in one 15-minute
+// bucket starting at Timestamp (unix seconds).
+type Contribution struct {
+	Timestamp int64
+	Count     int
+}
+
+// contributionKinds are the event kinds that count as something a user did:
+// pipeline runs and settings or access changes don't.
+const contributionKinds = `'push','tag','issue','pr','comment','release','wiki','repo','fork','package'`
+
+// Contributions counts what actorID did since `since` in the repositories
+// visible to viewer (nil = anonymous), in 15-minute buckets, oldest first.
+// Events that only follow from another action ("PR #3 updated to …" after a
+// push) aren't counted twice.
+func (s *Store) Contributions(ctx context.Context, viewer *User, actorID int64, since time.Time) ([]Contribution, error) {
+	repos, err := s.VisibleRepos(ctx, viewer)
+	if err != nil || len(repos) == 0 {
+		return nil, err
+	}
+	ids := make([]string, len(repos))
+	for i, r := range repos {
+		ids[i] = fmt.Sprint(r.ID)
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT created_at/900*900 AS b, COUNT(*) FROM events
+		WHERE actor_id=? AND created_at>=? AND kind IN (`+contributionKinds+`) AND summary NOT LIKE 'PR #%'
+		AND repo_id IN (`+strings.Join(ids, ",")+`) GROUP BY b ORDER BY b`, actorID, since.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Contribution
+	for rows.Next() {
+		var c Contribution
+		if err := rows.Scan(&c.Timestamp, &c.Count); err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}

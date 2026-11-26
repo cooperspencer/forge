@@ -56,7 +56,14 @@ func NewHome(ctx *Ctx) Page {
 
 	// --- activity feed
 	activity := &Tab{Name: "Activity", List: NewList(st, Column{Title: "REPOSITORY", Width: 24}, Column{Title: "EVENT", Flex: 1}, Column{Title: "WHEN", Width: 10, Right: true})}
+	var graph *activityGraph // yours, above the feed
+	if ctx.User != nil {
+		graph = newActivityGraph(ctx, ctx.User)
+	}
 	activity.Load = func() []Row {
+		if graph != nil {
+			graph.Load()
+		}
 		evs, _ := f.Store.Feed(c, ctx.User, 200)
 		return eventRows(st, evs)
 	}
@@ -104,6 +111,9 @@ func NewHome(ctx *Ctx) Page {
 	search := newSearchPane(ctx, nil, false)
 	tabs = append(tabs[:1], append([]*Tab{{Name: "Search", Custom: search}}, tabs[1:]...)...)
 	p := NewTabPage(ctx, "Home", tabs)
+	if graph != nil {
+		activity.Header = func() string { return graph.View(p.w, p.h) }
+	}
 	p.global = func(k string) (tea.Cmd, bool) {
 		if k == "S" {
 			p.t.Active = 1

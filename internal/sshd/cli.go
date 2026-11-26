@@ -56,6 +56,7 @@ type root struct {
 	Token         tokenCmds   `cmd:"" help:"Your API tokens."`
 	Org           orgCmds     `cmd:"" help:"Organizations."`
 	Notifications notifCmds   `cmd:"" help:"Your inbox."`
+	Activity      activityCmd `cmd:"" help:"Contribution graph of the last year: yours, or a user's."`
 	Whoami        whoamiCmd   `cmd:"" help:"Show your identity."`
 	Version       versionCmd  `cmd:"" help:"Show the server version."`
 }

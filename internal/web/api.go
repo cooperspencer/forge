@@ -11,6 +11,7 @@ import (
 
 	"github.com/cooperspencer/forge/internal/forge"
 	"github.com/cooperspencer/forge/internal/gitx"
+	"github.com/cooperspencer/forge/internal/heatmap"
 	"github.com/cooperspencer/forge/internal/store"
 )
 
@@ -176,6 +177,7 @@ func (s *Server) apiRoutes(mux *http.ServeMux) {
 	h("GET /api/v1/user", "", s.getSelf)
 	h("GET /api/v1/users/{name}", "", s.getUser)
 	h("PATCH /api/v1/users/{name}", "admin", s.patchUser)
+	h("GET /api/v1/users/{name}/heatmap", "code:read", s.getHeatmap)
 	h("GET /api/v1/users/{name}/secrets", "admin", s.listOwnerSecrets)
 	h("PUT /api/v1/users/{name}/secrets/{secret}", "admin", s.putOwnerSecret)
 	h("DELETE /api/v1/users/{name}/secrets/{secret}", "admin", s.deleteOwnerSecret)
@@ -323,6 +325,31 @@ func (s *Server) getUser(w http.ResponseWriter, r *http.Request, u *store.User) 
 		return err
 	}
 	writeJSON(w, 200, toUser(x, u != nil && (u.ID == x.ID || u.SiteAdmin())))
+	return nil
+}
+
+// getHeatmap returns a user's contributions of the last year in 15-minute
+// buckets, as Gitea does: [{"timestamp": unix, "contributions": n}].
+// Only repositories the caller can read count.
+func (s *Server) getHeatmap(w http.ResponseWriter, r *http.Request, u *store.User) error {
+	x, err := s.F.Store.UserByName(r.Context(), r.PathValue("name"))
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	cs, err := s.F.Store.Contributions(r.Context(), u, x.ID, heatmap.Since(now, time.UTC, heatmap.MaxWeeks))
+	if err != nil {
+		return err
+	}
+	type bucket struct {
+		Timestamp     int64 `json:"timestamp"`
+		Contributions int   `json:"contributions"`
+	}
+	out := []bucket{}
+	for _, c := range cs {
+		out = append(out, bucket{c.Timestamp, c.Count})
+	}
+	writeJSON(w, 200, out)
 	return nil
 }
 

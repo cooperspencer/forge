@@ -382,4 +382,8 @@ CREATE TABLE pr_revisions (
 	PRIMARY KEY (issue_id, n)
 );
 `,
+	// 10: the activity graph counts a user's events per day.
+	`
+CREATE INDEX events_actor ON events(actor_id, created_at);
+`,
 }

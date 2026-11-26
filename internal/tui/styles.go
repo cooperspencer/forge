@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/cooperspencer/forge/internal/heatmap"
 	"github.com/cooperspencer/forge/internal/store"
 )
 
@@ -24,6 +25,7 @@ type Styles struct {
 	Label, Badge                                               lipgloss.Style
 	Input, InputFocus, Help                                    lipgloss.Style
 	StatusOK, StatusFail, StatusRun, StatusWait, StatusNeutral lipgloss.Style
+	Heat                                                       [heatmap.Levels]lipgloss.Style // activity graph shades
 }
 
 var (
@@ -39,6 +41,15 @@ var (
 	cRed     = lipgloss.AdaptiveColor{Light: "#B91C1C", Dark: "#F87171"}
 	cYellow  = lipgloss.AdaptiveColor{Light: "#A16207", Dark: "#FACC15"}
 	cBlue    = lipgloss.AdaptiveColor{Light: "#1D4ED8", Dark: "#60A5FA"}
+
+	// activity graph, from no contributions to the most
+	cHeat = [heatmap.Levels]lipgloss.AdaptiveColor{
+		{Light: "#E5E7EB", Dark: "#2D333B"},
+		{Light: "#BBF7D0", Dark: "#14532D"},
+		{Light: "#4ADE80", Dark: "#15803D"},
+		{Light: "#16A34A", Dark: "#22C55E"},
+		{Light: "#14532D", Dark: "#86EFAC"},
+	}
 )
 
 func NewStyles(r *lipgloss.Renderer) *Styles {
@@ -83,6 +94,9 @@ func NewStyles(r *lipgloss.Renderer) *Styles {
 	s.StatusRun = ns().Foreground(cYellow)
 	s.StatusWait = ns().Foreground(cBlue)
 	s.StatusNeutral = ns().Foreground(cSubtle)
+	for i, c := range cHeat {
+		s.Heat[i] = ns().Foreground(c)
+	}
 	return s
 }
 
