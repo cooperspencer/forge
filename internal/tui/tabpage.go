@@ -30,6 +30,22 @@ type Tab struct {
 	belowH int // lines available for Below (set by SetSize)
 }
 
+// guardKeys makes t's own actions (the keys it lists) check allowed() when
+// they are pressed, not just when the page was opened: permissions can change
+// during a long session.
+func guardKeys(t *Tab, allowed func() bool) *Tab {
+	handle := t.Handle
+	t.Handle = func(k string, row *Row) (tea.Cmd, bool) {
+		for _, key := range t.Keys {
+			if key.Key == k && !allowed() {
+				return toastErr(forgeForbidden), true
+			}
+		}
+		return handle(k, row)
+	}
+	return t
+}
+
 // Pane is a custom tab body.
 type Pane interface {
 	Load()

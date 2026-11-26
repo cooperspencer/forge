@@ -98,7 +98,8 @@ func NewHome(ctx *Ctx) Page {
 		tabs = append(tabs, orgsTab(ctx), accountTab(ctx))
 	}
 	if ctx.User != nil && ctx.User.IsAdmin {
-		tabs = append(tabs, runnersTab(ctx), usersTab(ctx))
+		admin := func() bool { return ctx.User.SiteAdmin() }
+		tabs = append(tabs, guardKeys(runnersTab(ctx), admin), guardKeys(usersTab(ctx), admin))
 	}
 	if f.Cfg.Packages.Enabled && len(tabs) >= 2 {
 		pk := packagesTab(ctx, "No packages yet. Push an image or upload a file — see `ssh host help package`.", func() []*store.Package {

@@ -160,6 +160,31 @@ func (a *App) contentSize() (int, int) {
 	return a.w, h
 }
 
+// reauth reloads the session's account before every key press, so a removed
+// key, a deleted account or lost admin rights take effect right away instead
+// of when the SSH session ends. It reports false when the session must end.
+func (a *App) reauth() bool {
+	c := a.ctx
+	if c.User == nil {
+		return true
+	}
+	var u *store.User
+	var err error
+	if c.PubKey != nil {
+		u, err = c.F.UserForKey(c.Ctx, c.PubKey)
+	} else {
+		u, err = c.F.Store.UserByID(c.Ctx, c.User.ID)
+	}
+	switch {
+	case errors.Is(err, store.ErrNotFound), err == nil && u.ID != c.User.ID:
+		return false
+	case err != nil:
+		return true // a database hiccup: keep what we had
+	}
+	*c.User = *u // in place: pages hold this pointer
+	return true
+}
+
 func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -202,6 +227,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, tea.Batch(a.forward(msg), tick())
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
+			return a, tea.Quit
+		}
+		if !a.reauth() {
 			return a, tea.Quit
 		}
 		if a.help {
