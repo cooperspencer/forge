@@ -1,0 +1,6 @@
+/bin/
+/data/
+/forge
+forge.yaml
+/dist/
+/deploy/.env

@@ -1,0 +1,22 @@
+# forge's own pipeline — dogfooding.
+name: ci
+on:
+  push: {branches: [main], tags: ["v*"]}
+  pull_request: {}
+  manual: true
+jobs:
+  test:
+    image: golang:1.26
+    steps:
+      - name: install git
+        run: command -v git >/dev/null || (apt-get update -qq && apt-get install -y -qq git)
+      - go vet ./...
+      - go test ./...
+  build:
+    image: golang:1.26
+    needs: test
+    matrix:
+      goarch: [amd64, arm64]
+    steps:
+      - CGO_ENABLED=0 GOARCH=${{ matrix.goarch }} go build -trimpath -o dist/forge-linux-${{ matrix.goarch }} ./cmd/forge
+    artifacts: ["dist/*"]

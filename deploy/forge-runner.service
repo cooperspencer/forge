@@ -1,0 +1,17 @@
+# /etc/systemd/system/forge-runner.service
+# Put FORGE_RUNNER_SERVER and FORGE_RUNNER_TOKEN in /etc/forge/runner.env (mode 0600).
+[Unit]
+Description=forge CI runner
+After=docker.service network-online.target
+Requires=docker.service
+
+[Service]
+User=forge-runner
+SupplementaryGroups=docker
+EnvironmentFile=/etc/forge/runner.env
+ExecStart=/usr/local/bin/forge runner --concurrency 2 --workdir /var/lib/forge-runner
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

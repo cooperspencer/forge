@@ -1,0 +1,84 @@
+# Forge server + one CI runner. From the repository root:
+#
+#   cp deploy/.env.example deploy/.env      # then edit it
+#   docker compose -f deploy/docker-compose.yml up -d forge
+#   docker compose -f deploy/docker-compose.yml exec forge forge admin runner create compose
+#   # put the printed token into FORGE_RUNNER_TOKEN in deploy/.env, then:
+#   docker compose -f deploy/docker-compose.yml --profile runner up -d
+#
+# Every setting comes from deploy/.env; see README "Configuration" for all
+# FORGE_* variables.
+name: forge
+
+services:
+  forge:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: server
+    image: forge:latest
+    restart: unless-stopped
+    ports:
+      - "${FORGE_SSH_PORT:-23231}:23231"
+      - "${FORGE_HTTP_PORT:-23232}:23232"
+    environment:
+      FORGE_NAME: ${FORGE_NAME:-Forge}
+      # What users see in clone URLs / connect hints. Must match the host
+      # ports above (or your reverse proxy).
+      FORGE_SSH_PUBLIC_ADDR: ${FORGE_SSH_PUBLIC_ADDR:-localhost:23231}
+      FORGE_HTTP_PUBLIC_URL: ${FORGE_HTTP_PUBLIC_URL:-http://localhost:23232}
+      FORGE_INITIAL_ADMIN_KEYS: ${FORGE_INITIAL_ADMIN_KEYS:-}
+      FORGE_ANONYMOUS_READ: ${FORGE_ANONYMOUS_READ:-false}
+      FORGE_ALLOW_REGISTRATION: ${FORGE_ALLOW_REGISTRATION:-false}
+      FORGE_PACKAGES_ENABLED: ${FORGE_PACKAGES_ENABLED:-true}
+      FORGE_LOG_FORMAT: ${FORGE_LOG_FORMAT:-json}
+      FORGE_LOG_LEVEL: ${FORGE_LOG_LEVEL:-info}
+      # Keep the secrets key out of the data volume (and its backups):
+      # FORGE_SECRET_KEY_FILE: /run/secrets/forge_secret_key
+    volumes:
+      - forge-data:/data
+    networks: [forge]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:23232/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  runner:
+    profiles: [runner]
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: runner
+    image: forge-runner:latest
+    restart: unless-stopped
+    depends_on:
+      forge:
+        condition: service_healthy
+    environment:
+      FORGE_RUNNER_SERVER: http://forge:23232
+      FORGE_RUNNER_TOKEN: ${FORGE_RUNNER_TOKEN:-}
+      FORGE_RUNNER_LABELS: ${FORGE_RUNNER_LABELS:-}
+      FORGE_RUNNER_CONCURRENCY: ${FORGE_RUNNER_CONCURRENCY:-2}
+      # Job containers join this network, so they reach the server (git,
+      # artifacts, FORGE_REGISTRY=forge:23232) by its service name.
+      FORGE_RUNNER_NETWORK: forge-ci
+      # Set to /var/run/docker.sock to let jobs build images with the host's
+      # Docker (label docker-socket). That gives jobs root on the host.
+      FORGE_RUNNER_DOCKER_SOCKET: ${FORGE_RUNNER_DOCKER_SOCKET:-}
+      # Must be the same path inside and outside the container: job
+      # containers bind-mount workspaces from the host.
+      FORGE_RUNNER_WORKDIR: /var/lib/forge-runner
+      FORGE_LOG_FORMAT: ${FORGE_LOG_FORMAT:-json}
+      FORGE_LOG_LEVEL: ${FORGE_LOG_LEVEL:-info}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/forge-runner:/var/lib/forge-runner
+    networks: [forge]
+
+networks:
+  forge:
+    name: forge-ci
+
+volumes:
+  forge-data:

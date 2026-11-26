@@ -1,0 +1,20 @@
+# /etc/systemd/system/forge.service
+[Unit]
+Description=forge git server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=forge
+Group=forge
+WorkingDirectory=/var/lib/forge
+ExecStart=/usr/local/bin/forge serve -c /etc/forge/forge.yaml
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/forge
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

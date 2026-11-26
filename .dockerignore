@@ -1,0 +1,11 @@
+.git
+.github
+.dockerignore
+bin/
+dist/
+data/
+forge.yaml
+deploy/.env
+*.db
+*.log
+/forge
