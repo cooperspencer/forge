@@ -99,7 +99,20 @@ func TestBranchProtection(t *testing.T) {
 		t.Errorf("merge with requested changes: %v", err)
 	}
 	f.Comment(ctx, bob, r, pr, &store.Comment{Review: "approve", Body: "ok"})
-	e.waitRun("admin/app", 2, store.StatusSuccess) // the feature push ran ci
+	// the feature push ran ci; wait for that run by its ref, not its number
+	// (the first push started one run per branch, so the numbers depend on
+	// how many branches it had)
+	var featureRun int64
+	runs, _ := f.Store.Runs(ctx, r.ID, 10)
+	for _, x := range runs {
+		if x.Ref == "refs/heads/feature" {
+			featureRun = x.Number
+		}
+	}
+	if featureRun == 0 {
+		t.Fatal("the push to feature started no pipeline")
+	}
+	e.waitRun("admin/app", featureRun, store.StatusSuccess)
 	pr, _ = f.Store.IssueByNumber(ctx, r.ID, pr.Number)
 	if _, err := f.MergePR(ctx, e.admin, r, pr, "merge"); err != nil {
 		t.Errorf("merge with approval and checks: %v", err)
