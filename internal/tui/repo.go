@@ -36,7 +36,7 @@ func NewRepoPage(ctx *Ctx, r *store.Repo) Page {
 	}
 	tabs = append(tabs, s.activityTab())
 	if ctx.Access(r) >= store.AccessAdmin {
-		tabs = append(tabs, s.settingsTab())
+		tabs = append(tabs, guardKeys(s.settingsTab(), func() bool { return ctx.Access(r) >= store.AccessAdmin }))
 	}
 	p := NewTabPage(ctx, r.FullName(), tabs)
 	s.page = p

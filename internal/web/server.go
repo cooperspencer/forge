@@ -281,6 +281,10 @@ func (s *Server) jobRepo(ctx context.Context, jobID int64) (*store.Repo, error) 
 
 func (s *Server) routes(mux *http.ServeMux) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if dotSegments(r.URL.Path) {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
 		if repo, rest, ok := isLFSRequest(r.URL.Path); ok {
 			s.serveLFS(w, r, repo, rest)
 			return
@@ -382,6 +386,20 @@ func (w logWriter) Write(p []byte) (int, error) {
 		}
 	}
 	return len(p), nil
+}
+
+// dotSegments reports whether a path has "." or ".." segments. ServeMux
+// cleans those away, except when they arrive between encoded slashes
+// ("refs%2f..%2f..%2fother.git"): such a path would let a request authorized
+// for one repository name another to git. git refuses aliased paths too, but
+// forge doesn't rely on it.
+func dotSegments(p string) bool {
+	for _, seg := range strings.Split(p, "/") {
+		if seg == "." || seg == ".." {
+			return true
+		}
+	}
+	return false
 }
 
 // cutWiki splits "owner/name.wiki" (the wiki repository) into "owner/name".
