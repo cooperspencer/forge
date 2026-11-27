@@ -286,6 +286,7 @@ ci approve owner/name N`, or `POST …/runs/N/approve`. Review the change first:
 code on your runners (still without secrets). Every new push to the PR needs a new approval; it
 replaces the run still waiting. Collaborators with write access are trusted and run right away,
 as do pushes to a fork's own pipelines in the fork.
+
 - **Encrypted at rest** with AES-256-GCM, each value bound to its repository/owner and name.
   See [Security notes](#security-notes) for where the key lives.
 
@@ -431,9 +432,11 @@ the Home page. On a page: `e` edit, `o` follow a link, `h` history (and older ve
 - Page names may contain spaces and folders: "Getting Started" is `Getting-Started.md`,
   "guides/Setup" is `guides/Setup.md`.
 - **It's a git repository.** Clone it, edit pages in your editor, push:
+
   ```sh
   git clone ssh://host:23231/acme/api.wiki.git
   ```
+
   Pushes to the wiki never start pipelines.
 - Readers of the repository can read the wiki, writers can edit it. Each save is a commit by you;
   if someone else saved the wiki while you were editing, your save is refused instead of
